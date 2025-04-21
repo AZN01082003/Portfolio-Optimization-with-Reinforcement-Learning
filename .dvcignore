@@ -1,0 +1,4 @@
+# Fichiers à ignorer par DVC
+data/
+logs/
+models/

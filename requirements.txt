@@ -1,0 +1,6 @@
+# Dépendances Python
+numpy
+pandas
+yfinance
+pyyaml
+matplotlib

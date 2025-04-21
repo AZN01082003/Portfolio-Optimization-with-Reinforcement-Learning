@@ -1,0 +1,4 @@
+# Configuration par défaut
+data:
+  tickers: []
+  lookback_years: 2
