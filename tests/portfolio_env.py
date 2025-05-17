@@ -19,7 +19,7 @@ def load_config(config_path="config/default.json"):
     Charge la configuration depuis un fichier json.
     """
     with open(config_path, 'r') as file:
-        config = json.safe_load(file)
+        config = json.load(file)
     return config
 
 class PortfolioEnv(gym.Env):

@@ -1,1 +1,0 @@
-# Entraînement (basé sur votre train.py)

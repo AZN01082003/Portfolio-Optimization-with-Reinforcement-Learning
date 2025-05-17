@@ -1,0 +1,39 @@
+# Environnements virtuels
+venv/
+.env/
+.venv/
+
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs et données temporaires
+*.log
+logs/*
+!logs/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Fichiers de développement
+.git/
+.github/
+.gitignore
+.dvcignore
+.vscode/
+.idea/
+
+# Artefacts MLflow et modèles (montés en volumes)
+mlruns/
+artifacts/
+models/*
+!models/.gitkeep

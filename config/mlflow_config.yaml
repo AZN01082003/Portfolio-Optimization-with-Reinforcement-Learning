@@ -1,0 +1,18 @@
+# Configuration MLflow
+mlflow:
+  tracking_uri: http://localhost:5000
+  experiment_name: portfolio_optimization
+  model_name: portfolio_rl_model
+  metrics:
+    performance:
+      - sharpe_ratio
+      - total_return
+      - max_drawdown
+    training:
+      - mean_reward
+      - mean_return
+      - portfolio_value
+  tags:
+    project: portfolio_rl
+    version: 0.1.0
+    framework: stable-baselines3
