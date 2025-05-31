@@ -1,0 +1,335 @@
+version: '3.8'
+
+networks:
+  monitoring:
+    driver: bridge
+  portfolio-network:
+    external: true
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+
+services:
+  # Prometheus - Collecte des métriques
+  prometheus:
+    image: prom/prometheus:v2.40.0
+    container_name: portfolio-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+      - portfolio-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana - Visualisation des métriques
+  grafana:
+    image: grafana/grafana:9.3.0
+    container_name: portfolio-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=portfolio123
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AlertManager - Gestion des alertes
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: portfolio-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--web.route-prefix=/'
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/config.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node Exporter - Métriques système
+  node-exporter:
+    image: prom/node-exporter:v1.5.0
+    container_name: portfolio-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring
+
+  # cAdvisor - Métriques Docker
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.46.0
+    container_name: portfolio-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring
+
+  # Postgres Exporter - Métriques PostgreSQL
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.11.1
+    container_name: portfolio-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://airflow:airflow@postgres:5432/airflow?sslmode=disable
+    networks:
+      - monitoring
+      - portfolio-network
+    depends_on:
+      - prometheus
+
+  # Redis Exporter - Métriques Redis (si utilisé)
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.45.0
+    container_name: portfolio-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    networks:
+      - monitoring
+      - portfolio-network
+
+  # Blackbox Exporter - Tests de connectivité
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.22.0
+    container_name: portfolio-blackbox-exporter
+    restart: unless-stopped
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - monitoring
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+
+  # Loki - Collecte des logs
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: portfolio-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    networks:
+      - monitoring
+
+  # Promtail - Agent de collecte des logs
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: portfolio-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+
+  # Jaeger - Tracing distribué
+  jaeger:
+    image: jaegertracing/all-in-one:1.40
+    container_name: portfolio-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - monitoring
+
+  # Portfolio API avec métriques
+  portfolio-api-monitored:
+    build:
+      context: .
+      dockerfile: api.Dockerfile
+    container_name: portfolio-api-monitored
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8001:8001"  # Port des métriques
+    environment:
+      - PYTHONPATH=/app
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PROMETHEUS_PORT=8001
+      - ENABLE_METRICS=true
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./monitoring:/app/monitoring
+    networks:
+      - monitoring
+      - portfolio-network
+    depends_on:
+      - prometheus
+      - grafana
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MLflow avec métriques
+  mlflow-monitored:
+    build:
+      context: .
+      dockerfile: mlflow.Dockerfile
+    container_name: portfolio-mlflow-monitored
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "5001:5001"  # Port des métriques MLflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+      - BACKEND_STORE_URI=sqlite:///mlflow.db
+      - DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+      - PROMETHEUS_PORT=5001
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./artifacts:/mlflow/artifacts
+    networks:
+      - monitoring
+      - portfolio-network
+
+  # Nginx pour reverse proxy (optionnel)
+  nginx:
+    image: nginx:alpine
+    container_name: portfolio-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./monitoring/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./monitoring/ssl:/etc/nginx/ssl:ro
+    networks:
+      - monitoring
+    depends_on:
+      - grafana
+      - prometheus
+      - portfolio-api-monitored
+
+  # Service de backup automatique
+  backup-service:
+    image: alpine:latest
+    container_name: portfolio-backup
+    restart: unless-stopped
+    volumes:
+      - prometheus_data:/backup/prometheus:ro
+      - grafana_data:/backup/grafana:ro
+      - ./backups:/backups
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *  # Tous les jours à 2h du matin
+    command: |
+      sh -c '
+        apk add --no-cache tar gzip aws-cli
+        while true; do
+          echo "Démarrage du backup..."
+          timestamp=$(date +%Y%m%d_%H%M%S)
+          tar -czf /backups/prometheus_backup_$timestamp.tar.gz -C /backup/prometheus .
+          tar -czf /backups/grafana_backup_$timestamp.tar.gz -C /backup/grafana .
+          find /backups -name "*.tar.gz" -mtime +7 -delete
+          echo "Backup terminé: $timestamp"
+          sleep 86400  # Attendre 24h
+        done
+      '
+    networks:
+      - monitoring
+
+  # Service de monitoring de la santé
+  health-checker:
+    image: curlimages/curl:latest
+    container_name: portfolio-health-checker
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/health-check.sh:/health-check.sh:ro
+    command: |
+      sh -c '
+        while true; do
+          /health-check.sh
+          sleep 60
+        done
+      '
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+      - grafana
+      - portfolio-api-monitored

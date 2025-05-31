@@ -1,0 +1,183 @@
+# Règles d'alerte pour Portfolio RL
+groups:
+  - name: portfolio_api_alerts
+    rules:
+      # Taux d'erreur API élevé
+      - alert: HighAPIErrorRate
+        expr: rate(portfolio_api_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'erreur API élevé"
+          description: "Le taux d'erreur API est de {{ $value }} sur les 5 dernières minutes"
+          
+      # Latence API élevée
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(portfolio_api_request_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence API élevée"
+          description: "95% des requêtes prennent plus de {{ $value }}s"
+          
+      # API indisponible
+      - alert: APIDown
+        expr: up{job="portfolio-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API Portfolio indisponible"
+          description: "L'API Portfolio RL ne répond pas depuis {{ $labels.instance }}"
+
+  - name: portfolio_model_alerts
+    rules:
+      # Modèle en mauvaise santé
+      - alert: ModelUnhealthy
+        expr: portfolio_models_health_status < 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Modèle {{ $labels.model_name }} en mauvaise santé"
+          description: "Le modèle {{ $labels.model_name }} v{{ $labels.model_version }} est en panne"
+          
+      # Durée de prédiction élevée
+      - alert: SlowPredictions
+        expr: histogram_quantile(0.95, rate(portfolio_model_prediction_duration_seconds_bucket[10m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prédictions lentes"
+          description: "95% des prédictions prennent plus de {{ $value }}s"
+          
+      # Confiance des prédictions faible
+      - alert: LowPredictionConfidence
+        expr: histogram_quantile(0.5, rate(portfolio_model_prediction_confidence_bucket[30m])) < 0.3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Confiance des prédictions faible"
+          description: "Confiance médiane des prédictions: {{ $value }}"
+
+  - name: portfolio_performance_alerts
+    rules:
+      # Drawdown élevé
+      - alert: HighDrawdown
+        expr: portfolio_max_drawdown_percentage > 15
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Drawdown élevé pour {{ $labels.portfolio_id }}"
+          description: "Drawdown maximum: {{ $value }}%"
+          
+      # Drawdown critique
+      - alert: CriticalDrawdown
+        expr: portfolio_max_drawdown_percentage > 25
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Drawdown critique pour {{ $labels.portfolio_id }}"
+          description: "Drawdown maximum: {{ $value }}%"
+          
+      # Volatilité élevée
+      - alert: HighVolatility
+        expr: portfolio_volatility_percentage > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Volatilité élevée pour {{ $labels.portfolio_id }}"
+          description: "Volatilité: {{ $value }}%"
+          
+      # Ratio de Sharpe faible
+      - alert: LowSharpeRatio
+        expr: portfolio_sharpe_ratio < 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ratio de Sharpe faible pour {{ $labels.portfolio_id }}"
+          description: "Ratio de Sharpe: {{ $value }}"
+
+  - name: system_alerts
+    rules:
+      # Utilisation mémoire élevée
+      - alert: HighMemoryUsage
+        expr: portfolio_system_memory_usage_bytes / (1024*1024*1024) > 2  # > 2GB
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Utilisation mémoire élevée"
+          description: "Utilisation mémoire: {{ $value }}GB"
+          
+      # Utilisation mémoire critique
+      - alert: CriticalMemoryUsage
+        expr: portfolio_system_memory_usage_bytes / (1024*1024*1024) > 4  # > 4GB
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Utilisation mémoire critique"
+          description: "Utilisation mémoire: {{ $value }}GB"
+          
+      # Système indisponible
+      - alert: SystemDown
+        expr: up{job="node-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Système indisponible"
+          description: "Le système {{ $labels.instance }} ne répond pas"
+
+  - name: mlflow_alerts
+    rules:
+      # MLflow indisponible
+      - alert: MLflowDown
+        expr: up{job="mlflow"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MLflow indisponible"
+          description: "MLflow ne répond pas depuis {{ $labels.instance }}"
+          
+      # Taux d'échec des runs élevé
+      - alert: HighMLflowFailureRate
+        expr: rate(portfolio_mlflow_runs_total{status="FAILED"}[30m]) / rate(portfolio_mlflow_runs_total[30m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'échec MLflow élevé"
+          description: "{{ $value | humanizePercentage }} des runs échouent"
+
+  - name: business_alerts
+    rules:
+      # Coûts de transaction élevés
+      - alert: HighTransactionCosts
+        expr: increase(portfolio_transaction_costs_usd[1h]) > 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Coûts de transaction élevés"
+          description: "Coûts de transaction: ${{ $value }} sur la dernière heure"
+          
+      # Rééquilibrages fréquents
+      - alert: FrequentRebalancing
+        expr: rate(portfolio_rebalancing_events_total[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rééquilibrages trop fréquents"
+          description: "{{ $value }} rééquilibrages par heure pour {{ $labels.portfolio_id }}"

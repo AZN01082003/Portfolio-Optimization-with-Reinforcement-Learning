@@ -1,0 +1,79 @@
+# Configuration Prometheus pour Portfolio RL
+global:
+  scrape_interval: 15s      # Collecte toutes les 15 secondes
+  evaluation_interval: 15s  # Évaluation des règles toutes les 15 secondes
+  external_labels:
+    monitor: 'portfolio-rl'
+
+# Configuration des règles d'alerte
+rule_files:
+  - "alert_rules.yml"
+
+# Configuration Alertmanager
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Configuration des targets à scraper
+scrape_configs:
+  # API Portfolio RL
+  - job_name: 'portfolio-api'
+    static_configs:
+      - targets: ['portfolio-api:8001']  # Port des métriques
+    metrics_path: /metrics
+    scrape_interval: 5s
+    scrape_timeout: 3s
+    honor_labels: true
+    
+  # MLflow
+  - job_name: 'mlflow'
+    static_configs:
+      - targets: ['mlflow:5000']
+    metrics_path: /metrics
+    scrape_interval: 30s
+    
+  # Monitoring système avec node_exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    
+  # Monitoring Docker avec cadvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 15s
+    
+  # Postgres Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    
+  # Redis Exporter (si utilisé pour cache)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    
+  # Kafka Exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    scrape_interval: 30s
+
+# Configuration de stockage
+storage:
+  tsdb:
+    retention.time: 30d      # Garder 30 jours de données
+    retention.size: 10GB     # Maximum 10GB
+    wal-compression: true    # Compression des WAL
+    
+# Configuration de l'interface web
+web:
+  console.templates: '/etc/prometheus/consoles'
+  console.libraries: '/etc/prometheus/console_libraries'
+  enable-lifecycle: true    # Permet reload via API
+  enable-admin-api: true    # Active l'API admin
