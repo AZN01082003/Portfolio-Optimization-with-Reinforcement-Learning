@@ -1,0 +1,30 @@
+{
+  "tickers": [
+    "AAPL",
+    "MSFT"
+  ],
+  "start_date": "2025-04-30T23:53:11.841844",
+  "end_date": "2025-05-30T23:53:11.841844",
+  "download_timestamp": "2025-05-30T23:53:12.030862",
+  "data_shape": [
+    23,
+    12
+  ],
+  "columns": [
+    "('Open', 'AAPL')",
+    "('Open', 'MSFT')",
+    "('High', 'AAPL')",
+    "('High', 'MSFT')",
+    "('Low', 'AAPL')",
+    "('Low', 'MSFT')",
+    "('Close', 'AAPL')",
+    "('Close', 'MSFT')",
+    "('Adj Close', 'AAPL')",
+    "('Adj Close', 'MSFT')",
+    "('Volume', 'AAPL')",
+    "('Volume', 'MSFT')"
+  ],
+  "missing_data_count": 0,
+  "config_used": "C:\\Users\\info\\AppData\\Local\\Temp\\tmpv7sm_pnz.json",
+  "data_source": "mock_for_testing"
+}

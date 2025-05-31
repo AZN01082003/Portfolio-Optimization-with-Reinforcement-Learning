@@ -1,14 +1,17 @@
-# Portfolio Optimization with Reinforcement Learning
+# Portfolio RL MLOps
 
-This project applies Reinforcement Learning to optimize stock portfolio allocation using an end-to-end MLOps approach.
+## Structure des données
 
-## Features
+- `raw/`: Données brutes téléchargées
+- `processed/`: Données préprocessées pour l'entraînement
+- `models/`: Modèles entraînés sauvegardés
+- `logs/`: Logs d'entraînement et d'évaluation
 
-- Data ingestion from Yahoo Finance
-- Custom Gymnasium RL environment for portfolio optimization
-- PPO agent for learning optimal allocation strategy
-- MLOps pipeline with experiment tracking, CI/CD, and monitoring
+## Usage
 
-## Installation
-
-1. Clone the repository:
+1. Démarrer l'infrastructure: `start_development.bat` (Windows) ou `./start_development.sh` (Linux)
+2. Accéder aux services:
+   - API: http://localhost:8000
+   - MLflow: http://localhost:5000
+   - Grafana: http://localhost:3000 (admin/admin)
+   - Prometheus: http://localhost:9090

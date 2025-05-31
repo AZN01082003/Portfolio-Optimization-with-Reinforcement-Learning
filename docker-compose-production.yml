@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  portfolio-api:
+    build:
+      context: .
+      dockerfile: api.Dockerfile
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      - PYTHONPATH=/app
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PROMETHEUS_MONITORING=true
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - mlflow
+      - prometheus
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  mlflow:
+    image: python:3.9-slim
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/mlflow/mlruns
+      - ./artifacts:/mlflow/artifacts
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow/mlruns/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    command: >
+      bash -c "
+      pip install mlflow &&
+      mkdir -p /mlflow/mlruns /mlflow/artifacts &&
+      mlflow server --host 0.0.0.0 --port 5000 
+        --backend-store-uri sqlite:///mlflow/mlruns/mlflow.db 
+        --default-artifact-root /mlflow/artifacts
+      "
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  portfolio-network:
+    driver: bridge

@@ -45,7 +45,7 @@ try:
     from .metrics import portfolio_metrics, PROMETHEUS_AVAILABLE
 except ImportError:
     try:
-        from src.monitoring.metrics import portfolio_metrics, PROMETHEUS_AVAILABLE
+        from src.monitoring.simple_metrics import portfolio_metrics, PROMETHEUS_AVAILABLE
     except ImportError:
         logger.warning("⚠️ Impossible d'importer les métriques")
         portfolio_metrics = None

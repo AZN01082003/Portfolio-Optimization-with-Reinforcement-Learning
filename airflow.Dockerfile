@@ -1,19 +1,16 @@
-FROM apache/airflow:2.7.1
+FROM apache/airflow:2.5.0
 
 USER root
-
-# Installer les dépendances système nécessaires
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     build-essential \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 USER airflow
 
-# Installer les dépendances Python spécifiques au projet
-COPY requirements-airflow.txt /opt/airflow/
-RUN pip install --no-cache-dir -r /opt/airflow/requirements-airflow.txt
+# Copier et installer les requirements
+COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Créer les répertoires nécessaires pour les données et modèles
-RUN mkdir -p /opt/airflow/data/raw /opt/airflow/data/processed /opt/airflow/models
+# Cr�er les r�pertoires n�cessaires
+RUN mkdir -p /opt/airflow/data/raw /opt/airflow/data/processed \
+             /opt/airflow/models /opt/airflow/reports

@@ -1,9 +1,16 @@
 {
   "data": {
-    "tickers": ["AAPL", "MSFT", "GOOGL", "AMZN", "META"],
+    "tickers": [
+      "AAPL",
+      "MSFT",
+      "GOOGL",
+      "AMZN",
+      "TSLA"
+    ],
     "lookback_years": 2,
     "train_ratio": 0.7,
-    "output_dir": "data/processed"
+    "output_dir": "data/processed",
+    "cache_duration_minutes": 30
   },
   "environment": {
     "portfolio_value": 10000,
@@ -12,12 +19,14 @@
     "return_rate": 0.0001,
     "reward_scaling": 100.0,
     "max_reward_clip": 5.0,
-    "min_reward_clip": -5.0
+    "min_reward_clip": -5.0,
+    "normalize_observations": true,
+    "risk_penalty": 0.1
   },
   "training": {
     "algorithm": "PPO",
     "learning_rate": 0.0003,
-    "n_steps": 1024,
+    "n_steps": 2048,
     "batch_size": 64,
     "ent_coef": 0.01,
     "clip_range": 0.2,
@@ -25,28 +34,21 @@
     "gae_lambda": 0.95,
     "gamma": 0.99,
     "n_epochs": 10,
-    "total_timesteps": 50000,
+    "total_timesteps": 100000,
     "log_dir": "logs/training"
   },
   "evaluation": {
-    "results_dir": "logs/evaluation"
+    "results_dir": "logs/evaluation",
+    "min_reward_threshold": 0.1,
+    "min_return_threshold": 5.0
   },
-  "kafka": {
-    "bootstrap_servers": "kafka:9092",
-    "topics": {
-      "real_time_data": "real_time_stock_data",
-      "stock_tickers": "stock_tickers",
-      "processed_data_metadata": "processed_data_metadata",
-      "model_evaluation_metrics": "model_evaluation_metrics"
-    },
-    "consumer_groups": {
-      "data_processor": "data_processor_group",
-      "model_trainer": "model_trainer_group",
-      "api_service": "api_service_group"
-    }
+  "api": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "metrics_port": 8001
   },
-  "data_versioning": {
-    "enabled": true,
-    "remote": "s3://portfolio-rl-data"
+  "mlflow": {
+    "tracking_uri": "http://localhost:5000",
+    "experiment_name": "portfolio_optimization"
   }
 }

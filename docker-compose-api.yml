@@ -1,22 +1,32 @@
 version: '3.8'
 
 services:
+  # =============================================================================
+  # API PORTFOLIO RL
+  # =============================================================================
   portfolio-api:
     build:
       context: .
       dockerfile: api.Dockerfile
-    container_name: portfolio-api
     ports:
-      - "8000:8000"
+      - "8000:8000"  # API
+      - "8001:8001"  # Métriques
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./data:/app/data
     environment:
       - PYTHONPATH=/app
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-      - ./logs:/app/logs
     depends_on:
       - mlflow
+      - prometheus
+    networks:
+      - portfolio-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -24,17 +34,161 @@ services:
       timeout: 10s
       retries: 3
 
+  # =============================================================================
+  # MLFLOW
+  # =============================================================================
   mlflow:
     image: python:3.9-slim
-    container_name: portfolio-mlflow
     ports:
       - "5000:5000"
-    command: >
-      bash -c "pip install mlflow &&
-               mlflow server --host 0.0.0.0 --port 5000 
-               --backend-store-uri sqlite:///mlflow.db 
-               --default-artifact-root ./artifacts"
     volumes:
-      - ./mlruns:/mlruns
-      - ./artifacts:/artifacts
+      - ./mlruns:/mlflow/mlruns
+      - ./artifacts:/mlflow/artifacts
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow/mlruns/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    command: >
+      bash -c "
+      pip install mlflow psycopg2-binary &&
+      mlflow server 
+        --host 0.0.0.0 
+        --port 5000 
+        --backend-store-uri sqlite:///mlflow/mlruns/mlflow.db 
+        --default-artifact-root /mlflow/artifacts
+      "
+    networks:
+      - portfolio-network
     restart: unless-stopped
+
+  # =============================================================================
+  # MONITORING STACK
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert_rules.yaml:/etc/prometheus/alert_rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # KAFKA STACK (optionnel pour le streaming)
+  # =============================================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - portfolio-network
+    profiles: ["kafka"]
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - portfolio-network
+    profiles: ["kafka"]
+
+  # =============================================================================
+  # AIRFLOW (optionnel pour l'orchestration)
+  # =============================================================================
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - portfolio-network
+    profiles: ["airflow"]
+
+  airflow-webserver:
+    image: apache/airflow:2.5.0
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__FERNET_KEY: ''
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: true
+      AIRFLOW__CORE__LOAD_EXAMPLES: false
+      AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
+      - ./config:/opt/airflow/config
+    ports:
+      - "8080:8080"
+    command: webserver
+    networks:
+      - portfolio-network
+    profiles: ["airflow"]
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+  postgres_data:
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  portfolio-network:
+    driver: bridge

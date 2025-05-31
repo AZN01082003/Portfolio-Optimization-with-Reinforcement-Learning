@@ -1,0 +1,26 @@
+{
+  "shape": [
+    5,
+    3,
+    34
+  ],
+  "dtype": "float32",
+  "created_at": "2025-05-31T02:25:42.563194",
+  "tickers": [
+    "AAPL",
+    "MSFT",
+    "GOOGL"
+  ],
+  "n_features": 5,
+  "n_stocks": 3,
+  "n_time_periods": 49,
+  "train_ratio": 0.7,
+  "features": [
+    "Open",
+    "High",
+    "Low",
+    "Close",
+    "Volume"
+  ],
+  "data_type": "train"
+}

@@ -19,7 +19,7 @@ except ImportError:
     exit(1)
 
 # Imports du monitoring
-from .monitoring.metrics import portfolio_metrics, PROMETHEUS_AVAILABLE
+from .monitoring.simple_metrics import portfolio_metrics, PROMETHEUS_AVAILABLE
 from .api.monitoring_integration import setup_monitoring, monitor_endpoint
 
 # Configuration du logging

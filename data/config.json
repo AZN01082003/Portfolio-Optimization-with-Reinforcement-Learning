@@ -1,0 +1,14 @@
+{
+  "last_update": null,
+  "tickers_configured": [
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "TSLA"
+  ],
+  "data_sources": {
+    "yahoo_finance": true,
+    "cache_enabled": true
+  }
+}

@@ -20,7 +20,7 @@ def test_monitoring_imports():
     print("📦 Test des imports monitoring...")
     
     try:
-        from src.monitoring.metrics import PortfolioMetrics, portfolio_metrics
+        from src.monitoring.simple_metrics import PortfolioMetrics, portfolio_metrics
         print("   ✅ Métriques Prometheus")
         
         from src.api.monitoring_integration import MetricsMiddleware, setup_monitoring
@@ -366,7 +366,7 @@ def test_metrics_collection():
         from prometheus_client import CollectorRegistry
         test_registry = CollectorRegistry()
         
-        from src.monitoring.metrics import PortfolioMetrics
+        from src.monitoring.simple_metrics import PortfolioMetrics
         
         # Créer une instance de test avec un registre propre
         metrics = PortfolioMetrics(registry=test_registry)
