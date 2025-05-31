@@ -30,7 +30,7 @@ def train_model(**kwargs):
     import sys
     sys.path.append('/opt/airflow')
     
-    from models.training_pipeline import train_portfolio_agent
+    from src.models.training_pipeline import train_portfolio_agent
     
     # Exécuter l'entraînement
     model, training_info = train_portfolio_agent(

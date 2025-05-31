@@ -18,6 +18,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def get_config_path(config_path="config/default.json"):
+    """Obtient le chemin absolu vers le fichier de configuration."""
+    if os.path.isabs(config_path):
+        return config_path
+    
+    # Chercher depuis la racine du projet
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = current_dir
+    
+    # Remonter jusqu'à trouver le répertoire config
+    for _ in range(5):  # Maximum 5 niveaux
+        config_file = os.path.join(project_root, config_path)
+        if os.path.exists(config_file):
+            return config_file
+        project_root = os.path.dirname(project_root)
+    
+    # Fallback: utiliser le chemin relatif
+    return config_path
+
 def load_config(config_path: str = "config/default.json") -> dict:
     """
     Charge la configuration depuis un fichier JSON.

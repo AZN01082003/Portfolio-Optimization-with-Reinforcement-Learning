@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  portfolio-api:
+    build:
+      context: .
+      dockerfile: api.Dockerfile
+    container_name: portfolio-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mlflow:
+    image: python:3.9-slim
+    container_name: portfolio-mlflow
+    ports:
+      - "5000:5000"
+    command: >
+      bash -c "pip install mlflow &&
+               mlflow server --host 0.0.0.0 --port 5000 
+               --backend-store-uri sqlite:///mlflow.db 
+               --default-artifact-root ./artifacts"
+    volumes:
+      - ./mlruns:/mlruns
+      - ./artifacts:/artifacts
+    restart: unless-stopped

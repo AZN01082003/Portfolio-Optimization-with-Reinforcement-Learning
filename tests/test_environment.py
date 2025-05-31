@@ -3,7 +3,7 @@ Tests unitaires pour l'environnement de portfolio.
 """
 import numpy as np
 import pytest
-from portfolio_env import PortfolioEnv
+from src.environment.portfolio_env import PortfolioEnv
 
 @pytest.fixture
 def sample_data():

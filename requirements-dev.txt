@@ -1,0 +1,31 @@
+# Dépendances de développement
+pytest>=6.2.5
+pytest-cov>=3.0.0
+black>=21.6b0
+isort>=5.9.2
+flake8>=4.0.0
+mypy>=0.910
+
+# MLOps et monitoring  
+mlflow>=2.0.0
+prometheus-client>=0.15.0
+
+# RL et ML
+stable-baselines3>=2.0.0
+gymnasium>=0.28.1
+torch>=1.12.0
+
+# Data et viz
+pandas>=1.3.0
+numpy>=1.20.0
+matplotlib>=3.5.0
+seaborn>=0.11.2
+
+# API
+fastapi>=0.68.0
+uvicorn>=0.15.0
+pydantic>=1.8.0
+
+# Infrastructure
+docker>=5.0.0
+requests>=2.25.1

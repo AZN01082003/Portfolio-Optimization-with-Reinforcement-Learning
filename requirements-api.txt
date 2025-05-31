@@ -1,0 +1,21 @@
+# API FastAPI
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+
+# ML et données
+numpy>=1.20.0
+pandas>=1.3.0
+scikit-learn>=1.0.0
+
+# MLflow
+mlflow>=2.0.0
+
+# RL (optionnel pour prédictions)
+stable-baselines3>=2.0.0
+gymnasium>=0.28.1
+
+# Utilitaires
+requests>=2.25.1
+python-dotenv>=0.20.0
